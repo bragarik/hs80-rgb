@@ -1,0 +1,24 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Windows PowerShell 5.1
+        shell: powershell
+        run: ./tests/Smoke.Tests.ps1
+      - name: PowerShell 7
+        shell: pwsh
+        run: ./tests/Smoke.Tests.ps1
+      - name: Enumerate HID without a headset
+        shell: powershell
+        run: ./hs80-rgb.ps1 -ListDevices
