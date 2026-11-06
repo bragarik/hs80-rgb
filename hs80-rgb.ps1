@@ -11,7 +11,7 @@ param(
     [Parameter(ParameterSetName = 'Apply')]
     [Parameter(ParameterSetName = 'Install')]
     [ValidateRange(0, 100)]
-    [int]$Brightness = 100,
+    [int]$Brightness = 0,
 
     [Parameter(ParameterSetName = 'Apply')]
     [switch]$Preview,
@@ -31,7 +31,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$programVersion = '0.1.0+hid.3'
+$programVersion = '0.1.0+rev.4'
 
 if ($Version) {
     Write-Output ('HS80 RGB ' + $programVersion)
@@ -46,6 +46,11 @@ try {
 
     # Accept only a validated hex color and numeric brightness in shortcut arguments.
     $hexColor = $Color.TrimStart('#').ToUpperInvariant()
+    # The default off preset reports 0%. A requested nonblack color remains
+    # visible without an extra brightness argument. Honor every explicit value.
+    if (-not $PSBoundParameters.ContainsKey('Brightness') -and $hexColor -ne '000000') {
+        $Brightness = 100
+    }
 
     if ($InstallStartup -or $UninstallStartup) {
         $startup = [Environment]::GetFolderPath('Startup')

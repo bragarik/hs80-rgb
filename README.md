@@ -8,7 +8,7 @@ Tambem permite escolher uma cor estatica e ajustar sua intensidade.
 
 [**Baixar HS80 RGB v0.1.0 para Windows (.zip)**](https://github.com/bragarik/hs80-rgb/releases/download/v0.1.0/hs80-rgb-v0.1.0.zip)
 
-Versao previa: o comando para apagar foi confirmado no fone; cor, brilho e inicializacao automatica ainda aguardam validacao no hardware. Extraia todo o ZIP antes de executar o `.bat`. Nao e necessario instalar Git ou clonar o repositorio.
+Versao previa: apagar, cor e brilho foram confirmados no fone; a execucao no login ainda aguarda validacao no hardware. Extraia todo o ZIP antes de executar o `.bat`. Nao e necessario instalar Git ou clonar o repositorio.
 
 [Todas as versoes e notas](https://github.com/bragarik/hs80-rgb/releases) · [Testes automatizados](https://github.com/bragarik/hs80-rgb/actions)
 
@@ -19,7 +19,7 @@ Versao previa: o comando para apagar foi confirmado no fone; cor, brilho e inici
 - Nao exige Python, drivers adicionais, bibliotecas externas ou privilegios de administrador em uma instalacao normal do Windows.
 - Nao cobre HS80 Wireless, HS80 MAX nem outros headsets Corsair.
 
-O comando para apagar foi confirmado por um usuario com esse modelo. As opcoes de cor, brilho e inicializacao automatica ainda precisam de validacao nesse hardware. Os testes automatizados verificam a compilacao, os parametros e a montagem dos comandos, sem acessar um headset.
+Apagar os LEDs, escolher uma cor e ajustar o brilho foram confirmados por um usuario com esse modelo no Windows 11. A execucao automatica no login ainda precisa de validacao nesse hardware. Os testes automatizados verificam a compilacao, os parametros e a montagem dos comandos, sem acessar um headset.
 
 ## Uso
 
@@ -46,7 +46,7 @@ Para outras opcoes, abra um terminal na pasta extraida:
 .\hs80-rgb.bat -Color "FFFFFF" -Brightness 0
 ```
 
-`Color` aceita seis digitos hexadecimais, com ou sem `#`. `Brightness` aceita um inteiro de 0 a 100; o padrao e 100. O brilho e calculado multiplicando os canais RGB pela porcentagem, sem alterar uma configuracao separada de brilho do firmware. A percepcao visual nao e necessariamente linear.
+`Color` aceita seis digitos hexadecimais, com ou sem `#`. `Brightness` aceita um inteiro de 0 a 100. Sem argumentos, o padrao e **preto (`000000`) e brilho 0%**. Ao informar uma cor diferente de preto sem informar brilho, o programa usa 100%, para que a cor apareca. Um brilho informado explicitamente sempre e respeitado, inclusive zero. O brilho e calculado multiplicando os canais RGB pela porcentagem, sem alterar uma configuracao separada de brilho do firmware. A percepcao visual nao e necessariamente linear.
 
 Para executar pelo PowerShell sem o `.bat`:
 
@@ -59,7 +59,7 @@ O `Bypass` vale apenas para esse processo, sem mudar a politica de execucao conf
 ## Aplicar ao entrar no Windows
 
 ```powershell
-# Apagar em cada login do usuario atual
+# Apagar em cada login do usuario atual (preto, brilho 0%)
 .\hs80-rgb.bat -InstallStartup
 
 # Ou salvar uma cor e intensidade para cada login
@@ -69,7 +69,7 @@ O `Bypass` vale apenas para esse processo, sem mudar a politica de execucao conf
 .\hs80-rgb.bat -UninstallStartup
 ```
 
-A instalacao copia o script para `%LOCALAPPDATA%\HS80-RGB\hs80-rgb.ps1` e cria o atalho `HS80 RGB.lnk` na pasta de inicializacao do usuario. Nao aplica a cor imediatamente: use tambem o comando normal para isso. Para mudar a cor salva ou atualizar o script instalado, execute `-InstallStartup` novamente.
+A instalacao copia o script para `%LOCALAPPDATA%\HS80-RGB\hs80-rgb.ps1` e cria o atalho `HS80 RGB.lnk` na pasta de inicializacao do usuario. Sem argumentos de cor e brilho, salva `-Color 000000 -Brightness 0`. Nao aplica a cor imediatamente: use tambem o comando normal para isso. Para mudar a cor salva ou atualizar o script instalado, execute `-InstallStartup` novamente; atualizar o ZIP nao modifica atalhos ja instalados.
 
 A remocao exclui somente o atalho. Voce pode excluir manualmente a pasta `%LOCALAPPDATA%\HS80-RGB` depois. Se criou o atalho antigo `HS80 RGB apagado` durante um teste manual, remova-o em `Win + R` → `shell:startup` para evitar duas execucoes.
 
@@ -90,7 +90,7 @@ O script roda uma vez por login e encerra. O fone deve estar conectado nesse mom
 
 O script aceita apenas `1B1C:0A88`, interface USB `MI_03`, e seleciona a colecao com `UsagePage=0xFFC5`, `Usage=0x0001`, saida de 16 bytes e relatorio `C8`. Esses valores foram observados no fone testado em Windows 11. Um unico fone pode apresentar `Col01` e `Col02`: elas nao sao dois headsets. A colecao `Col02` observada anuncia apenas `C8`; a selecao nao exige que `C9` e `CB` estejam no descritor, embora eles facam parte da sequencia de comandos que apagou os LEDs no teste inicial. A selecao nao depende da ordem de enumeracao ou de um numero de colecao fixo. Se ainda houver mais de uma colecao RGB elegivel, interrompe sem enviar comandos. Consulte `-ListDevices`, que mostra tambem UsagePage, Usage e RgbReports.
 
-O codigo com essa selecao e identificado como `0.1.0+hid.3`. A revisao `hid.2` rejeitava o descritor que anuncia apenas `C8`; versoes anteriores ainda podiam confundir duas colecoes com dois headsets. Atualizar a branch no GitHub nao substitui automaticamente os ZIPs ja publicados em Releases.
+A revisao atual e identificada como `0.1.0+rev.4` e usa brilho 0% no preset apagado. Ela mantem a selecao de interface corrigida em `hid.3`. A revisao `hid.2` rejeitava o descritor que anuncia apenas `C8`; versoes anteriores ainda podiam confundir duas colecoes com dois headsets. Atualizar a branch no GitHub nao substitui automaticamente os ZIPs ja publicados em Releases.
 
 Se falhar, feche o iCUE, confira a conexao e execute o `.bat` no terminal para ler a mensagem. O `.bat` pausa quando ocorre um erro. O atalho de inicializacao executa sem janela; para diagnostica-lo, rode o script instalado manualmente no terminal.
 

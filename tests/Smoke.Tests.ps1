@@ -17,10 +17,11 @@ $parseErrors = $null
 if ($parseErrors.Count -gt 0) { throw ($parseErrors | Out-String) }
 
 $version = & $scriptPath -Version
-Assert-Equal $version 'HS80 RGB 0.1.0+hid.3' 'Version can be checked without accessing USB'
+Assert-Equal $version 'HS80 RGB 0.1.0+rev.4' 'Version can be checked without accessing USB'
 
 $off = & $scriptPath -Preview
-Assert-Equal $off.Version '0.1.0+hid.3' 'Preview identifies the build'
+Assert-Equal $off.Version '0.1.0+rev.4' 'Preview identifies the build'
+Assert-Equal $off.Brightness 0 'Default off preset stores and reports zero brightness'
 Assert-Equal $off.EffectiveColor '#000000' 'Default is off'
 Assert-Equal $off.Reports.Count 5 'Five HID reports'
 Assert-Equal $off.Reports[0] 'C8-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00' 'Mode reset'
@@ -31,13 +32,20 @@ Assert-Equal $off.Reports[4] 'CB-03-1C-00-16-00-17-00-00-00-00-00-00-00-00-00' '
 
 $color = & $scriptPath -Preview -Color '#123abc'
 Assert-Equal $color.Color '#123ABC' 'Normalize hex input'
+Assert-Equal $color.Brightness 100 'A requested color remains visible without a brightness argument'
 Assert-Equal $color.EffectiveColor '#123ABC' 'Full brightness preserves RGB'
 Assert-Equal $color.Reports[4] 'CB-03-1C-12-16-3A-17-BC-00-00-00-00-00-00-00-00' 'RGB channel order'
 
 $dim = & $scriptPath -Preview -Color '0080FF' -Brightness 50
 Assert-Equal $dim.EffectiveColor '#004080' 'Half brightness including midpoint rounding'
 $zero = & $scriptPath -Preview -Color 'FFFFFF' -Brightness 0
+Assert-Equal $zero.Brightness 0 'An explicit zero is not replaced by the visible-color default'
 Assert-Equal $zero.Reports[4] $off.Reports[4] 'Zero brightness matches off'
+
+$explicitBlack = & $scriptPath -Preview -Color '#000000'
+Assert-Equal $explicitBlack.Brightness 0 'Explicit black uses the off preset'
+$explicitBrightness = & $scriptPath -Preview -Brightness 25
+Assert-Equal $explicitBrightness.Brightness 25 'An explicit brightness is preserved even with default black'
 
 foreach ($invalidColor in @('red', '#123', '1234567', 'GG0000', '000000;whoami')) {
     $rejected = $false
