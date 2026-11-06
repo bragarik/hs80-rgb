@@ -4,6 +4,14 @@ Apague os LEDs laterais do **Corsair HS80 RGB USB com fio** sem instalar o iCUE.
 
 Tambem permite escolher uma cor estatica e ajustar sua intensidade.
 
+## Download
+
+[**Baixar HS80 RGB v0.1.0 para Windows (.zip)**](https://github.com/bragarik/hs80-rgb/releases/download/v0.1.0/hs80-rgb-v0.1.0.zip)
+
+Versao previa: o comando para apagar foi confirmado no fone; cor, brilho e inicializacao automatica ainda aguardam validacao no hardware. Extraia todo o ZIP antes de executar o `.bat`. Nao e necessario instalar Git ou clonar o repositorio.
+
+[Todas as versoes e notas](https://github.com/bragarik/hs80-rgb/releases) · [Testes automatizados](https://github.com/bragarik/hs80-rgb/actions)
+
 ## Compatibilidade
 
 - Windows 11, usando o Windows PowerShell 5.1 incluido no sistema.
@@ -15,7 +23,7 @@ O comando para apagar foi confirmado por um usuario com esse modelo. As opcoes d
 
 ## Uso
 
-Baixe o ZIP do repositorio e extraia todos os arquivos. Feche o iCUE e outros aplicativos que controlem a iluminacao do fone.
+Baixe o ZIP na secao Download e extraia todos os arquivos. Feche o iCUE e outros aplicativos que controlem a iluminacao do fone.
 
 De dois cliques em **`hs80-rgb.bat`** para apagar os LEDs. Mantenha `hs80-rgb.ps1` na mesma pasta do `.bat`.
 
@@ -70,6 +78,9 @@ O script roda uma vez por login e encerra. O fone deve estar conectado nesse mom
 ## Diagnostico
 
 ```powershell
+# Conferir a versao e a revisao do codigo, sem acessar USB
+.\hs80-rgb.bat -Version
+
 # Listar as interfaces do modelo, sem enviar comandos de iluminacao
 .\hs80-rgb.bat -ListDevices
 
@@ -77,7 +88,9 @@ O script roda uma vez por login e encerra. O fone deve estar conectado nesse mom
 .\hs80-rgb.bat -Color "0080FF" -Brightness 50 -Preview
 ```
 
-O script aceita apenas `1B1C:0A88` e uma unica interface HID com relatorios de saida de 16 bytes. Se encontrar mais de uma interface compativel, interrompe sem enviar comandos. Desconecte headsets duplicados e consulte `-ListDevices`.
+O script aceita apenas `1B1C:0A88`, interface USB `MI_03`, e seleciona a colecao com `UsagePage=0xFFC5`, `Usage=0x0001`, saida de 16 bytes e relatorio `C8`. Esses valores foram observados no fone testado em Windows 11. Um unico fone pode apresentar `Col01` e `Col02`: elas nao sao dois headsets. A colecao `Col02` observada anuncia apenas `C8`; a selecao nao exige que `C9` e `CB` estejam no descritor, embora eles facam parte da sequencia de comandos que apagou os LEDs no teste inicial. A selecao nao depende da ordem de enumeracao ou de um numero de colecao fixo. Se ainda houver mais de uma colecao RGB elegivel, interrompe sem enviar comandos. Consulte `-ListDevices`, que mostra tambem UsagePage, Usage e RgbReports.
+
+O codigo com essa selecao e identificado como `0.1.0+hid.3`. A revisao `hid.2` rejeitava o descritor que anuncia apenas `C8`; versoes anteriores ainda podiam confundir duas colecoes com dois headsets. Atualizar a branch no GitHub nao substitui automaticamente os ZIPs ja publicados em Releases.
 
 Se falhar, feche o iCUE, confira a conexao e execute o `.bat` no terminal para ler a mensagem. O `.bat` pausa quando ocorre um erro. O atalho de inicializacao executa sem janela; para diagnostica-lo, rode o script instalado manualmente no terminal.
 
@@ -104,6 +117,26 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Smoke.Tests.ps1
 ```
 
 O GitHub Actions executa os testes no Windows PowerShell 5.1 e no PowerShell 7. `-Preview` e os testes tambem funcionam no PowerShell 7 em Linux, mas nao verificam as chamadas nativas do Windows.
+
+### Publicar uma versao
+
+Crie as notas em `releases/vX.Y.Z.md`, atualize o link de download acima e envie os arquivos antes da tag:
+
+```bash
+git push origin main
+git tag -a vX.Y.Z -m "HS80 RGB vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+O workflow Release testa no Windows PowerShell 5.1 e no PowerShell 7, monta o ZIP com finais de linha do Windows e publica a Release com checksum SHA-256. A versao `v0.1.0` e tags com sufixo, como `v0.2.0-beta.1`, sao publicadas como previas. Somente a previa inicial `v0.1.0` pode ter seus arquivos substituidos ao atualizar a tag: a Release fica como rascunho durante a troca e volta a ser publicada depois do upload dos dois arquivos. Outras releases existentes nao sao sobrescritas.
+
+No clone do repositorio, para montar o pacote localmente sem publicar:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version v0.1.0
+```
+
+O resultado fica em `dist/`. O ZIP inclui scripts, instrucoes, licenca, notas e testes; nao inclui configuracoes locais do Git.
 
 ## Creditos e licenca
 

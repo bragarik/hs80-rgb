@@ -16,7 +16,11 @@ $parseErrors = $null
     $scriptPath, [ref]$tokens, [ref]$parseErrors) | Out-Null
 if ($parseErrors.Count -gt 0) { throw ($parseErrors | Out-String) }
 
+$version = & $scriptPath -Version
+Assert-Equal $version 'HS80 RGB 0.1.0+hid.3' 'Version can be checked without accessing USB'
+
 $off = & $scriptPath -Preview
+Assert-Equal $off.Version '0.1.0+hid.3' 'Preview identifies the build'
 Assert-Equal $off.EffectiveColor '#000000' 'Default is off'
 Assert-Equal $off.Reports.Count 5 'Five HID reports'
 Assert-Equal $off.Reports[0] 'C8-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00' 'Mode reset'
@@ -53,4 +57,52 @@ try { & $scriptPath -InstallStartup -Preview | Out-Null }
 catch { $rejected = $true }
 if (-not $rejected) { throw 'InstallStartup must not be combined with Preview.' }
 
-Write-Output 'PASS: parsing, C# compilation, HID packets, RGB, brightness and parameter validation.'
+# Regression: one physical HS80 exposes two collections of equal output length.
+# Uses the capability values reported by the user on Windows 11. Paths are anonymized.
+function New-Interface([string]$path, [int]$length, [byte[]]$reports, [uint16]$usagePage = 0xFFC5, [uint16]$usage = 1) {
+    $info = New-Object HS80Rgb.HidInterfaceInfo
+    $info.Path = $path
+    $info.OutputReportByteLength = $length
+    $info.SupportedRgbReports = $reports
+    $info.UsagePage = $usagePage
+    $info.Usage = $usage
+    return $info
+}
+
+$path1 = '\\?\HID#VID_1B1C&PID_0A88&MI_03&Col01#a&unit1&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}'
+$path2 = '\\?\HID#VID_1B1C&PID_0A88&MI_03&Col02#a&unit1&0&0001#{4d1e55b2-f16f-11cf-88cb-001111000030}'
+$nonRgb = New-Interface $path1 16 @() 0x000C
+$rgb = New-Interface $path2 16 @(0xC8)
+Assert-Equal ([HS80Rgb.Controller]::SelectControlInterface(@($nonRgb, $rgb))) $path2 'Observed FFC5 collection with only C8 is accepted'
+Assert-Equal ([HS80Rgb.Controller]::SelectControlInterface(@($rgb, $nonRgb))) $path2 'Selection does not depend on enumeration order'
+
+# Collection numbering itself must not determine selection.
+$rgb1 = New-Interface $path1 16 @(0xC8)
+$nonRgb2 = New-Interface $path2 16 @() 0x000C
+Assert-Equal ([HS80Rgb.Controller]::SelectControlInterface(@($rgb1, $nonRgb2))) $path1 'Collection names are not hardcoded'
+
+$otherDevice = New-Interface ($path2.Replace('PID_0A88', 'PID_0A97')) 16 @(0xC8, 0xC9, 0xCB)
+$otherInterface = New-Interface ($path2.Replace('MI_03', 'MI_02')) 16 @(0xC8, 0xC9, 0xCB)
+Assert-Equal ([HS80Rgb.Controller]::SelectControlInterface(@($otherDevice, $otherInterface, $rgb))) $path2 'Wrong model and interface are excluded'
+
+$secondHeadset = New-Interface ($path2.Replace('unit1', 'unit2')) 16 @(0xC8, 0xC9, 0xCB)
+foreach ($ambiguous in @(@($rgb, $secondHeadset), @($rgb, $rgb1))) {
+    $rejected = $false
+    try { [HS80Rgb.Controller]::SelectControlInterface($ambiguous) | Out-Null }
+    catch { $rejected = $true }
+    if (-not $rejected) { throw 'Ambiguous RGB collections must not receive commands.' }
+}
+
+$missingC8 = New-Interface $path2 16 @(0xC9, 0xCB)
+$wrongPage = New-Interface $path1 16 @(0xC8, 0xC9, 0xCB) 0x000C
+$wrongUsage = New-Interface $path2 16 @(0xC8) 0xFFC5 2
+$wrongLength = New-Interface $path2 64 @(0xC8, 0xC9, 0xCB)
+Assert-Equal ([HS80Rgb.Controller]::SelectControlInterface(@($wrongPage, $rgb))) $path2 'Consumer collection is excluded even if reports overlap'
+foreach ($invalid in @($nonRgb, $missingC8, $wrongPage, $wrongUsage, $wrongLength, $otherDevice, $otherInterface)) {
+    $rejected = $false
+    try { [HS80Rgb.Controller]::SelectControlInterface(@($invalid)) | Out-Null }
+    catch { $rejected = $true }
+    if (-not $rejected) { throw 'An incompatible interface was accepted.' }
+}
+
+Write-Output 'PASS: compilation, HID packets, RGB, brightness, parameters and HID collection selection.'

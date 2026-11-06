@@ -23,11 +23,20 @@ param(
     [switch]$InstallStartup,
 
     [Parameter(Mandatory, ParameterSetName = 'Uninstall')]
-    [switch]$UninstallStartup
+    [switch]$UninstallStartup,
+
+    [Parameter(Mandatory, ParameterSetName = 'Version')]
+    [switch]$Version
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$programVersion = '0.1.0+hid.3'
+
+if ($Version) {
+    Write-Output ('HS80 RGB ' + $programVersion)
+    return
+}
 
 try {
     $isWindowsPlatform = [Environment]::OSVersion.Platform -eq 'Win32NT'
@@ -73,10 +82,20 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace HS80Rgb
 {
+    public sealed class HidInterfaceInfo
+    {
+        public string Path;
+        public int OutputReportByteLength = -1;
+        public ushort UsagePage;
+        public ushort Usage;
+        public byte[] SupportedRgbReports = new byte[0];
+    }
+
     public static class Controller
     {
         [DllImport("cfgmgr32.dll", CharSet = CharSet.Unicode)]
@@ -99,6 +118,10 @@ namespace HS80Rgb
 
         [DllImport("hid.dll")]
         static extern int HidP_GetCaps(IntPtr data, [Out] byte[] caps);
+
+        [DllImport("hid.dll")]
+        static extern int HidP_InitializeReportForID(int reportType, byte reportId,
+            IntPtr data, [Out] byte[] report, uint reportLength);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern bool WriteFile(SafeFileHandle handle, byte[] buffer,
@@ -130,28 +153,82 @@ namespace HS80Rgb
             throw new Exception("USB devices changed during enumeration. Try again.");
         }
 
-        static int OutputLength(string path)
+        static HidInterfaceInfo Inspect(string path)
         {
+            HidInterfaceInfo info = new HidInterfaceInfo();
+            info.Path = path;
             using (SafeFileHandle handle = CreateFileW(path, 0, 3, IntPtr.Zero, 3, 0, IntPtr.Zero))
             {
-                if (handle.IsInvalid) return -1;
+                if (handle.IsInvalid) return info;
                 IntPtr data;
-                if (!HidD_GetPreparsedData(handle, out data)) return -1;
+                if (!HidD_GetPreparsedData(handle, out data)) return info;
                 try
                 {
                     byte[] caps = new byte[64];
-                    if (HidP_GetCaps(data, caps) != 0x00110000) return -1;
-                    return BitConverter.ToUInt16(caps, 6);
+                    if (HidP_GetCaps(data, caps) != 0x00110000) return info;
+                    info.Usage = BitConverter.ToUInt16(caps, 0);
+                    info.UsagePage = BitConverter.ToUInt16(caps, 2);
+                    info.OutputReportByteLength = BitConverter.ToUInt16(caps, 6);
+                    if (info.OutputReportByteLength == 16)
+                    {
+                        List<byte> supported = new List<byte>();
+                        foreach (byte id in new byte[] { 0xC8, 0xC9, 0xCB })
+                        {
+                            // This HID parser call only initializes a memory buffer.
+                            // It does not send any data to the headset.
+                            if (HidP_InitializeReportForID(1, id, data, new byte[16], 16)
+                                    == 0x00110000)
+                                supported.Add(id);
+                        }
+                        info.SupportedRgbReports = supported.ToArray();
+                    }
+                    return info;
                 }
                 finally { HidD_FreePreparsedData(data); }
             }
+        }
+
+        // Windows exposes separate top-level collections (Col01, Col02, ...)
+        // for one USB interface. Equal report lengths do not make them equivalent.
+        public static string SelectControlInterface(HidInterfaceInfo[] interfaces)
+        {
+            List<string> candidates = new List<string>();
+            foreach (HidInterfaceInfo info in interfaces)
+            {
+                if (info == null || info.Path == null) continue;
+                string[] parts = info.Path.Split('#');
+                if (parts.Length < 3 || !Regex.IsMatch(parts[1],
+                        @"^vid_1b1c&pid_0a88&mi_03(?:&col[0-9a-f]{2})?$",
+                        RegexOptions.IgnoreCase)) continue;
+                if (info.OutputReportByteLength != 16) continue;
+                if (info.UsagePage != 0xFFC5 || info.Usage != 0x0001) continue;
+                if (info.SupportedRgbReports == null) continue;
+                // Observed Windows descriptor: vendor page FFC5, usage 1, C8 only.
+                // C9 and CB belong to the working command sequence but are not
+                // advertised by this descriptor; requiring them rejects the device.
+                if (Array.IndexOf(info.SupportedRgbReports, (byte)0xC8) < 0) continue;
+                if (!candidates.Contains(info.Path)) candidates.Add(info.Path);
+            }
+
+            if (candidates.Count == 0)
+                throw new Exception("No HS80 USB 1B1C:0A88 MI_03 control collection found (UsagePage FFC5, Usage 1, 16 bytes, report C8). Close iCUE and run -ListDevices.");
+            if (candidates.Count != 1)
+                throw new Exception("Multiple HS80 RGB control collections found on UsagePage FFC5. Connect only one HS80 and share the output of -ListDevices.");
+            return candidates[0];
         }
 
         public static string[] ListDevices()
         {
             List<string> result = new List<string>();
             foreach (string path in GetPaths())
-                result.Add(path + " | OutputReportByteLength=" + OutputLength(path));
+            {
+                HidInterfaceInfo info = Inspect(path);
+                string reports = info.SupportedRgbReports.Length == 0 ? "none" :
+                    BitConverter.ToString(info.SupportedRgbReports).Replace('-', ',');
+                result.Add(String.Format(
+                    "{0} | OutputReportByteLength={1} | UsagePage=0x{2:X4} | Usage=0x{3:X4} | RgbReports={4}",
+                    path, info.OutputReportByteLength, info.UsagePage, info.Usage, reports));
+            }
             return result.ToArray();
         }
 
@@ -175,17 +252,13 @@ namespace HS80Rgb
 
         public static void Apply(byte red, byte green, byte blue)
         {
-            List<string> candidates = new List<string>();
+            List<HidInterfaceInfo> interfaces = new List<HidInterfaceInfo>();
             foreach (string path in GetPaths())
-                if (OutputLength(path) == 16) candidates.Add(path);
-
-            if (candidates.Count == 0)
-                throw new Exception("HS80 USB 1B1C:0A88 control interface not found or inaccessible. Close iCUE and check the USB connection.");
-            if (candidates.Count != 1)
-                throw new Exception("More than one compatible interface found. Connect only one HS80 and run -ListDevices.");
+                interfaces.Add(Inspect(path));
+            string selectedPath = SelectControlInterface(interfaces.ToArray());
 
             using (SafeFileHandle handle = CreateFileW(
-                candidates[0], 0x40000000, 3, IntPtr.Zero, 3, 0, IntPtr.Zero))
+                selectedPath, 0x40000000, 3, IntPtr.Zero, 3, 0, IntPtr.Zero))
             {
                 if (handle.IsInvalid)
                     throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -226,6 +299,7 @@ namespace HS80Rgb
 
     if ($Preview) {
         [pscustomobject]@{
+            Version = $programVersion
             Color = '#' + $hexColor
             Brightness = $Brightness
             EffectiveColor = '#{0:X2}{1:X2}{2:X2}' -f $channels[0], $channels[1], $channels[2]

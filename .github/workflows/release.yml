@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test controller and package on Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          ./tests/Smoke.Tests.ps1
+          ./tests/Release.Tests.ps1
+      - name: Test controller and package on PowerShell 7
+        shell: pwsh
+        run: |
+          ./tests/Smoke.Tests.ps1
+          ./tests/Release.Tests.ps1
+      - name: Build and publish release
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $package = ./scripts/Build-Release.ps1 -Version $env:RELEASE_TAG
+          $existingJson = gh release view $env:RELEASE_TAG --json isPrerelease,isDraft 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $existing = $existingJson | ConvertFrom-Json
+            # Only this initial preview may be replaced when its tag is amended.
+            if ($env:RELEASE_TAG -ne 'v0.1.0' -or -not $existing.isPrerelease) {
+              throw 'An existing release cannot be replaced. Publish a new version.'
+            }
+            # Hide the preview until both replacement assets have been uploaded.
+            gh release edit $env:RELEASE_TAG --draft=true
+            if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the preview for replacement.' }
+            gh release upload $env:RELEASE_TAG $package.ZipPath $package.ChecksumPath --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'Preview asset replacement failed; the release remains a draft.' }
+            gh release edit $env:RELEASE_TAG --draft=false --prerelease --notes-file $package.NotesPath
+            if ($LASTEXITCODE -ne 0) { throw 'Preview republication failed.' }
+            exit 0
+          }
+          $arguments = @(
+            'release', 'create', $env:RELEASE_TAG,
+            $package.ZipPath, $package.ChecksumPath,
+            '--verify-tag', '--draft',
+            '--title', ('HS80 RGB ' + $env:RELEASE_TAG),
+            '--notes-file', $package.NotesPath
+          )
+          if ($env:RELEASE_TAG -eq 'v0.1.0' -or $env:RELEASE_TAG.Contains('-')) {
+            $arguments += '--prerelease'
+          }
+          gh @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Release creation or asset upload failed.' }
+          gh release edit $env:RELEASE_TAG --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
