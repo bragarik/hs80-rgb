@@ -26,7 +26,7 @@ $zipPath = Join-Path $OutputDirectory $zipName
 
 try {
     New-Item -ItemType Directory -Path (Join-Path $packageDir 'tests') -Force | Out-Null
-    foreach ($file in @('hs80-rgb.bat', 'hs80-rgb.ps1', 'README.md', 'LICENSE', 'tests/Smoke.Tests.ps1')) {
+    foreach ($file in @('hs80-rgb.bat', 'hs80-rgb.ps1', 'README.md', 'LICENSE', 'tests/Smoke.Tests.ps1', 'tests/Lifecycle.Tests.ps1', 'tests/Startup.Tests.ps1')) {
         $source = Join-Path $root $file
         $target = Join-Path $packageDir $file
         if ($file -match '\.(bat|ps1)$') {

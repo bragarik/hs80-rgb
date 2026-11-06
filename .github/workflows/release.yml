@@ -42,8 +42,8 @@ jobs:
           $existingJson = gh release view $env:RELEASE_TAG --json isPrerelease,isDraft 2>$null
           if ($LASTEXITCODE -eq 0) {
             $existing = $existingJson | ConvertFrom-Json
-            # Only this initial preview may be replaced when its tag is amended.
-            if ($env:RELEASE_TAG -ne 'v0.1.0' -or -not $existing.isPrerelease) {
+            # Only these development previews may be rebuilt after an amended tag.
+            if ($env:RELEASE_TAG -notin @('v0.1.0', 'v0.2.0') -or -not $existing.isPrerelease) {
               throw 'An existing release cannot be replaced. Publish a new version.'
             }
             # Hide the preview until both replacement assets have been uploaded.
@@ -62,7 +62,7 @@ jobs:
             '--title', ('HS80 RGB ' + $env:RELEASE_TAG),
             '--notes-file', $package.NotesPath
           )
-          if ($env:RELEASE_TAG -eq 'v0.1.0' -or $env:RELEASE_TAG.Contains('-')) {
+          if ($env:RELEASE_TAG -in @('v0.1.0', 'v0.2.0') -or $env:RELEASE_TAG.Contains('-')) {
             $arguments += '--prerelease'
           }
           gh @arguments
