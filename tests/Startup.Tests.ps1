@@ -13,6 +13,10 @@ $install = Join-Path $temp 'installed files'
 $startupFolder = Join-Path $temp 'startup folder'
 $fixture = Join-Path $temp 'fixture.ps1'
 New-Item -ItemType Directory -Path $temp | Out-Null
+$projectRoot = Split-Path $PSScriptRoot -Parent
+$iconSource = Join-Path $projectRoot 'hs80-rgb.ico'
+if (-not (Test-Path -LiteralPath $iconSource)) { $iconSource = Join-Path $projectRoot 'assets/hs80-rgb.ico' }
+Copy-Item -LiteralPath $iconSource -Destination (Join-Path $temp 'hs80-rgb.ico')
 @'
 param([switch]$Startup, [string]$Color, [int]$Brightness, [string]$Effect, [int]$Period, [string]$Colors, [int]$Seed)
 Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class ConsoleProbe { [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow(); }'

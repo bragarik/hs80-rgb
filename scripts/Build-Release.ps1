@@ -26,9 +26,14 @@ $zipPath = Join-Path $OutputDirectory $zipName
 
 try {
     New-Item -ItemType Directory -Path (Join-Path $packageDir 'tests') -Force | Out-Null
-    foreach ($file in @('hs80-rgb.bat', 'hs80-rgb.ps1', 'README.md', 'LICENSE', 'tests/Smoke.Tests.ps1', 'tests/Lifecycle.Tests.ps1', 'tests/Startup.Tests.ps1')) {
-        $source = Join-Path $root $file
+    foreach ($file in @('hs80-rgb.bat', 'hs80-rgb.ps1', 'hs80-rgb.ico', 'assets/CORSAIR-ICON-SOURCE.txt', 'README.md', 'LICENSE', 'tests/Smoke.Tests.ps1', 'tests/Lifecycle.Tests.ps1', 'tests/Startup.Tests.ps1')) {
+        $source = if ($file -eq 'hs80-rgb.ico') { Join-Path $root 'assets/hs80-rgb.ico' } else { Join-Path $root $file }
         $target = Join-Path $packageDir $file
+        if ($file -like 'assets/*') {
+            $assetDirectory = Join-Path $packageDir 'assets'
+            New-Item -ItemType Directory -Path $assetDirectory -Force | Out-Null
+            $target = Join-Path $assetDirectory (Split-Path -Leaf $file)
+        }
         if ($file -match '\.(bat|ps1)$') {
             # UTF-8 without BOM, CRLF. Scripts contain ASCII for PS 5.1 compatibility.
             $content = [IO.File]::ReadAllText($source) -replace '\r?\n', "`r`n"

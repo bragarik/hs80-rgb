@@ -17,10 +17,10 @@ $parseErrors = $null
 if ($parseErrors.Count -gt 0) { throw ($parseErrors | Out-String) }
 
 $version = & $scriptPath -Version
-Assert-Equal $version 'HS80 RGB 0.2.0+startup.3' 'Version can be checked without accessing USB'
+Assert-Equal $version 'HS80 RGB 0.2.0+startup.5' 'Version can be checked without accessing USB'
 
 $off = & $scriptPath -Preview
-Assert-Equal $off.Version '0.2.0+startup.3' 'Preview identifies the build'
+Assert-Equal $off.Version '0.2.0+startup.5' 'Preview identifies the build'
 Assert-Equal $off.Effect 'Static' 'The default remains one-shot static mode'
 Assert-Equal $off.RunsContinuously $false 'The default does not leave a process running'
 Assert-Equal $off.StartupParameters '-Color 000000 -Brightness 0 -Effect Static -Period 4' 'The startup preset records off at zero brightness'

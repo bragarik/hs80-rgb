@@ -57,7 +57,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$programVersion = '0.2.0+startup.3'
+$programVersion = '0.2.0+startup.5'
 
 function Get-HS80StartupLauncherSource {
     return @'
@@ -66,6 +66,12 @@ using System.IO;
 using System.Text;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Reflection;
+
+[assembly: AssemblyCompany("Ricardo Braga Lab")]
+[assembly: AssemblyProduct("HS80 RGB")]
+[assembly: AssemblyTitle("HS80 RGB - Corsair HS80 USB")]
+[assembly: AssemblyDescription("Controle de iluminacao do headset Corsair HS80 RGB USB")]
 
 // GUI-subsystem entry point: it has no console of its own. Unlike a console
 // shortcut with WindowStyle Hidden, the child is created without a window.
@@ -141,6 +147,15 @@ function Install-HS80Startup {
     if ([IO.Path]::GetFullPath($ScriptPath) -ne [IO.Path]::GetFullPath($installedScript)) {
         Copy-Item -LiteralPath $ScriptPath -Destination $installedScript -Force
     }
+    $iconSource = Join-Path (Split-Path -Parent $ScriptPath) 'hs80-rgb.ico'
+    if (-not (Test-Path -LiteralPath $iconSource -PathType Leaf)) {
+        $iconSource = Join-Path (Split-Path -Parent $ScriptPath) 'assets/hs80-rgb.ico'
+    }
+    if (-not (Test-Path -LiteralPath $iconSource -PathType Leaf)) {
+        throw "Icon file not found: $iconSource"
+    }
+    $installedIcon = Join-Path $InstallDirectory 'hs80-rgb.ico'
+    Copy-Item -LiteralPath $iconSource -Destination $installedIcon -Force
     $source = Get-HS80StartupLauncherSource
     $sha = [Security.Cryptography.SHA256]::Create()
     try {
@@ -150,12 +165,18 @@ function Install-HS80Startup {
     if (-not (Test-Path -LiteralPath $launcher)) {
         Add-Type -TypeDefinition $source -OutputAssembly $launcher -OutputType WindowsApplication
     }
-    $shortcutPath = Join-Path $StartupDirectory 'HS80 RGB.lnk'
+    foreach ($legacyName in @('HS80 RGB.lnk', 'HS80 RGB apagado.lnk')) {
+        $legacyPath = Join-Path $StartupDirectory $legacyName
+        if (Test-Path -LiteralPath $legacyPath) { Remove-Item -LiteralPath $legacyPath -Force }
+    }
+    $shortcutPath = Join-Path $StartupDirectory 'HS80 RGB - Corsair.lnk'
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = $launcher
     $shortcut.Arguments = $Parameters
     $shortcut.WorkingDirectory = $InstallDirectory
+    $shortcut.Description = 'HS80 RGB - Corsair | Ricardo Braga Lab'
+    $shortcut.IconLocation = $installedIcon + ',0'
     $shortcut.Save()
     return [pscustomobject]@{ ScriptPath = $installedScript; LauncherPath = $launcher; ShortcutPath = $shortcutPath }
 }
@@ -216,13 +237,20 @@ try {
 
     if ($InstallStartup -or $UninstallStartup) {
         $startupDirectory = [Environment]::GetFolderPath('Startup')
-        $shortcutPath = Join-Path $startupDirectory 'HS80 RGB.lnk'
+        $shortcutPath = Join-Path $startupDirectory 'HS80 RGB - Corsair.lnk'
 
         if ($UninstallStartup) {
-            if (Test-Path -LiteralPath $shortcutPath) {
-                Remove-Item -LiteralPath $shortcutPath
+            foreach ($shortcutName in @('HS80 RGB - Corsair.lnk', 'HS80 RGB.lnk', 'HS80 RGB apagado.lnk')) {
+                $existingShortcut = Join-Path $startupDirectory $shortcutName
+                if (Test-Path -LiteralPath $existingShortcut) {
+                    Remove-Item -LiteralPath $existingShortcut -Force
+                }
             }
-            Write-Output 'Inicializacao automatica removida. Para parar uma animacao ativa, use -Stop.'
+            $installDir = Join-Path $env:LOCALAPPDATA 'HS80-RGB'
+            if (Test-Path -LiteralPath $installDir) {
+                Remove-Item -LiteralPath $installDir -Recurse -Force
+            }
+            Write-Output 'Inicializacao e arquivos instalados removidos. Uma animacao ativa nao foi interrompida.'
             return
         }
 

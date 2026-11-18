@@ -14,7 +14,7 @@ try {
     $extracted = Join-Path $temp 'extracted'
     Expand-Archive -LiteralPath $package.ZipPath -DestinationPath $extracted
     $packageRoot = Join-Path $extracted 'hs80-rgb'
-    $expectedFiles = @('LICENSE', 'README.md', 'RELEASE-NOTES.md', 'hs80-rgb.bat', 'hs80-rgb.ps1', 'tests/Smoke.Tests.ps1', 'tests/Lifecycle.Tests.ps1', 'tests/Startup.Tests.ps1')
+    $expectedFiles = @('LICENSE', 'README.md', 'RELEASE-NOTES.md', 'hs80-rgb.bat', 'hs80-rgb.ps1', 'hs80-rgb.ico', 'assets/CORSAIR-ICON-SOURCE.txt', 'tests/Smoke.Tests.ps1', 'tests/Lifecycle.Tests.ps1', 'tests/Startup.Tests.ps1')
     $actualFiles = @(Get-ChildItem -LiteralPath $packageRoot -File -Recurse)
     if ($actualFiles.Count -ne $expectedFiles.Count) { throw 'The ZIP contains missing or unexpected files.' }
     foreach ($file in $expectedFiles) {

@@ -1,6 +1,6 @@
 # HS80 RGB
 
-Controle os LEDs laterais do **Corsair HS80 RGB USB com fio** no Windows 11 sem instalar o iCUE. O mesmo `.bat` pode apagar, definir uma cor ou executar seis animações. Revisão atual: **`0.2.0+startup.3`**.
+Controle os LEDs laterais do **Corsair HS80 RGB USB com fio** no Windows 11 sem instalar o iCUE. O mesmo `.bat` pode apagar, definir uma cor ou executar seis animações. Revisão atual: **`0.2.0+startup.5`**.
 
 | Modo | Comportamento |
 | --- | --- |
@@ -13,7 +13,7 @@ Controle os LEDs laterais do **Corsair HS80 RGB USB com fio** no Windows 11 sem 
 
 [Todas as versões](https://github.com/bragarik/hs80-rgb/releases) · [Testes automatizados](https://github.com/bragarik/hs80-rgb/actions)
 
-Extraia **todo o ZIP** antes de executar. Mantenha `hs80-rgb.bat` e `hs80-rgb.ps1` na mesma pasta. Não precisa instalar Git, Python ou bibliotecas externas.
+Extraia **todo o ZIP** antes de executar. Mantenha `hs80-rgb.bat` e `hs80-rgb.ps1` na mesma pasta. O ícone pode estar nessa pasta ou em `assets`, como no ZIP de código do GitHub. Não precisa instalar Git, Python ou bibliotecas externas.
 
 Esta versão é uma **prévia das animações**. Apagar, cor estática e brilho foram confirmados no headset na v0.1.0. Os novos efeitos, parada por Ctrl+C, troca de efeito e execução no login ainda precisam de confirmação física no Windows com o fone.
 
@@ -134,24 +134,25 @@ A instalação cria estes arquivos para o usuário atual:
 | Arquivo | Finalidade |
 | --- | --- |
 | `%LOCALAPPDATA%\HS80-RGB\hs80-rgb.ps1` | Cópia do controlador |
-| `%LOCALAPPDATA%\HS80-RGB\HS80Rgb.Startup-<identificador>.exe` | Pequeno iniciador sem console, compilado localmente a partir do código C# incluído no script |
-| `HS80 RGB.lnk`, na pasta de inicialização do usuário | Atalho para o iniciador, com cor, brilho, efeito, período e paleta/semente quando aplicável |
+| `%LOCALAPPDATA%\HS80-RGB\hs80-rgb.ico` | Ícone da Corsair usado pelo atalho |
+| `%LOCALAPPDATA%\HS80-RGB\HS80Rgb.Startup-<identificador>.exe` | Pequeno iniciador sem console, compilado localmente a partir do código C# incluído no script; fornecedor: Ricardo Braga Lab |
+| `HS80 RGB - Corsair.lnk`, na pasta de inicialização do usuário | Atalho com ícone da Corsair e os parâmetros salvos |
 | `%LOCALAPPDATA%\HS80-RGB\startup.log` | Diagnóstico e tempos da execução no login; criado quando o iniciador executa |
 
 O iniciador cria o PowerShell sem janela de console e encerra imediatamente. Em uma animação, somente o controlador PowerShell continua ativo; no modo estático, ele também encerra após aplicar a cor. Não instala serviço nem exige VBScript. Os comandos manuais pelo `.bat` continuam visíveis no terminal, permitindo Ctrl+C.
 
 Use o `.bat` para configurar a inicialização: ele chama o Windows PowerShell 5.1, necessário para compilar o iniciador. A compilação ocorre durante a instalação, não a cada login. O controlador C# dos comandos USB ainda é compilado pelo script a cada processo; o modo silencioso não promete reduzir o tempo até aplicar a cor.
 
-Execute `-InstallStartup` novamente para mudar a escolha salva ou atualizar uma instalação anterior. A atualização do download não altera o atalho nem a cópia já instalada. Se ainda houver um atalho antigo chamado `HS80 RGB apagado`, remova-o em `Win + R` → `shell:startup` para evitar execuções duplicadas.
+Execute `-InstallStartup` novamente para mudar a escolha salva ou atualizar uma instalação anterior. A atualização do download não altera o atalho nem a cópia já instalada; a nova instalação renomeia o atalho para **HS80 RGB - Corsair** e remove nomes antigos conhecidos. O ícone da Corsair pertence à Corsair; o projeto é independente e não é endossado pela fabricante.
 
-`-Stop` e alterações manuais preservam o atalho. `-UninstallStartup` remove apenas o atalho: a cópia local permanece, e uma animação ativa continua até `-Stop`, Ctrl+C ou substituição por outro modo. O headset deve estar conectado no login; não há monitoramento de novas conexões.
+`-Stop` e alterações manuais preservam a configuração de inicialização. `-UninstallStartup` remove os atalhos conhecidos e apaga recursivamente `%LOCALAPPDATA%\HS80-RGB`, sem enviar comandos ao headset. Uma animação que já esteja ativa continua até `-Stop`, Ctrl+C ou substituição por outro modo. A pasta extraída do ZIP não é removida.
 
 Depois de atualizar para esta revisão, execute `-InstallStartup` novamente para substituir o alvo antigo do atalho pelo iniciador sem console, informando a cor/efeito que deseja salvar. A atualização do ZIP sozinha não altera uma instalação existente.
 
 ## Versão e diagnóstico
 
 ```powershell
-# Deve mostrar HS80 RGB 0.2.0+startup.3
+# Deve mostrar HS80 RGB 0.2.0+startup.5
 .\hs80-rgb.bat -Version
 
 # Interfaces HID, sem enviar comandos de iluminação
