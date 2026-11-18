@@ -1,6 +1,6 @@
 # HS80 RGB
 
-Controle os LEDs laterais do **Corsair HS80 RGB USB com fio** no Windows 11 sem instalar o iCUE. O mesmo `.bat` pode apagar, definir uma cor ou executar seis animações. Revisão atual: **`0.2.0+startup.5`**.
+Controle os LEDs laterais do **Corsair HS80 RGB USB com fio** no Windows 11 sem instalar o iCUE. O mesmo `.bat` pode apagar, definir uma cor ou executar seis animações. Versão atual: **`1.0.0`**.
 
 | Modo | Comportamento |
 | --- | --- |
@@ -9,13 +9,13 @@ Controle os LEDs laterais do **Corsair HS80 RGB USB com fio** no Windows 11 sem 
 
 ## Download
 
-[**Baixar HS80 RGB v0.2.0 para Windows (.zip)**](https://github.com/bragarik/hs80-rgb/releases/download/v0.2.0/hs80-rgb-v0.2.0.zip)
+[**Baixar HS80 RGB v1.0.0 para Windows (.zip)**](https://github.com/bragarik/hs80-rgb/releases/download/v1.0.0/hs80-rgb-v1.0.0.zip)
 
 [Todas as versões](https://github.com/bragarik/hs80-rgb/releases) · [Testes automatizados](https://github.com/bragarik/hs80-rgb/actions)
 
 Extraia **todo o ZIP** antes de executar. Mantenha `hs80-rgb.bat` e `hs80-rgb.ps1` na mesma pasta. O ícone pode estar nessa pasta ou em `assets`, como no ZIP de código do GitHub. Não precisa instalar Git, Python ou bibliotecas externas.
 
-Esta versão é uma **prévia das animações**. Apagar, cor estática e brilho foram confirmados no headset na v0.1.0. Os novos efeitos, parada por Ctrl+C, troca de efeito e execução no login ainda precisam de confirmação física no Windows com o fone.
+Esta é a versão estável 1.0.0. Ela reúne controle estático, seis animações, inicialização silenciosa e remoção completa dos arquivos instalados. Os testes automatizados cobrem o processamento dos efeitos, os parâmetros e o empacotamento; confira o comportamento visual no headset compatível.
 
 ## Compatibilidade
 
@@ -134,16 +134,15 @@ A instalação cria estes arquivos para o usuário atual:
 | Arquivo | Finalidade |
 | --- | --- |
 | `%LOCALAPPDATA%\HS80-RGB\hs80-rgb.ps1` | Cópia do controlador |
-| `%LOCALAPPDATA%\HS80-RGB\hs80-rgb.ico` | Ícone da Corsair usado pelo atalho |
-| `%LOCALAPPDATA%\HS80-RGB\HS80Rgb.Startup-<identificador>.exe` | Pequeno iniciador sem console, compilado localmente a partir do código C# incluído no script; fornecedor: Ricardo Braga Lab |
-| `HS80 RGB - Corsair.lnk`, na pasta de inicialização do usuário | Atalho com ícone da Corsair e os parâmetros salvos |
+| `%LOCALAPPDATA%\HS80-RGB\HS80Rgb.Startup-<identificador>.exe` | Iniciador sem console, com o ícone Corsair embutido e fornecedor Ricardo Braga Lab |
+| `HS80 RGB - Ricardo Braga Lab.lnk`, na pasta de inicialização do usuário | Entrada exibida em Aplicativos de inicialização, apontando para o iniciador com ícone embutido e parâmetros salvos |
 | `%LOCALAPPDATA%\HS80-RGB\startup.log` | Diagnóstico e tempos da execução no login; criado quando o iniciador executa |
 
 O iniciador cria o PowerShell sem janela de console e encerra imediatamente. Em uma animação, somente o controlador PowerShell continua ativo; no modo estático, ele também encerra após aplicar a cor. Não instala serviço nem exige VBScript. Os comandos manuais pelo `.bat` continuam visíveis no terminal, permitindo Ctrl+C.
 
 Use o `.bat` para configurar a inicialização: ele chama o Windows PowerShell 5.1, necessário para compilar o iniciador. A compilação ocorre durante a instalação, não a cada login. O controlador C# dos comandos USB ainda é compilado pelo script a cada processo; o modo silencioso não promete reduzir o tempo até aplicar a cor.
 
-Execute `-InstallStartup` novamente para mudar a escolha salva ou atualizar uma instalação anterior. A atualização do download não altera o atalho nem a cópia já instalada; a nova instalação renomeia o atalho para **HS80 RGB - Corsair** e remove nomes antigos conhecidos. O ícone da Corsair pertence à Corsair; o projeto é independente e não é endossado pela fabricante.
+Execute `-InstallStartup` novamente para mudar a escolha salva ou atualizar uma instalação anterior. A atualização do download não altera o atalho nem a cópia já instalada; a instalação atualizada passa a exibir **HS80 RGB - Ricardo Braga Lab** em Aplicativos de inicialização, com o ícone da Corsair embutido no iniciador, e remove nomes antigos conhecidos. O ícone da Corsair pertence à Corsair; o projeto é independente e não é endossado pela fabricante.
 
 `-Stop` e alterações manuais preservam a configuração de inicialização. `-UninstallStartup` remove os atalhos conhecidos e apaga recursivamente `%LOCALAPPDATA%\HS80-RGB`, sem enviar comandos ao headset. Uma animação que já esteja ativa continua até `-Stop`, Ctrl+C ou substituição por outro modo. A pasta extraída do ZIP não é removida.
 
@@ -152,7 +151,7 @@ Depois de atualizar para esta revisão, execute `-InstallStartup` novamente para
 ## Versão e diagnóstico
 
 ```powershell
-# Deve mostrar HS80 RGB 0.2.0+startup.5
+# Deve mostrar HS80 RGB 1.0.0
 .\hs80-rgb.bat -Version
 
 # Interfaces HID, sem enviar comandos de iluminação
@@ -209,12 +208,12 @@ git tag -a vX.Y.Z -m "HS80 RGB vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-O workflow Release testa, monta o ZIP e publica notas e checksum SHA-256. `v0.2.0` é uma prévia das animações; versões com sufixo, como `v0.3.0-beta.1`, também são prévias. Somente as prévias `v0.1.0` e `v0.2.0` podem ter seus arquivos substituídos quando a tag é atualizada. Durante essa troca, a Release vira rascunho até o upload do ZIP e do checksum terminar. Releases estáveis e outras versões existentes não são sobrescritas.
+O workflow Release testa, monta o ZIP e publica notas e checksum SHA-256. `v0.1.0` e `v0.2.0` são versões antigas marcadas como prévias. Versões com sufixo, como `v1.1.0-beta.1`, também são prévias. Apenas essas prévias podem ser reconstruídas quando suas tags são atualizadas. Releases estáveis existentes não são sobrescritas.
 
 Para montar um pacote local sem publicar:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version v0.2.0
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version v1.0.0
 ```
 
 O resultado fica em `dist/`. O ZIP inclui os scripts, instruções, licença, notas e testes necessários para conferir a distribuição.

@@ -44,6 +44,7 @@ try {
     $shortcut = $shell.CreateShortcut($installed.ShortcutPath)
     if ($shortcut.TargetPath -ne $installed.LauncherPath) { throw 'Shortcut does not point to the GUI launcher.' }
     if ($shortcut.Arguments -cne $parameters) { throw 'Startup parameters changed during installation.' }
+    if ($shortcut.IconLocation -cne ($installed.LauncherPath + ',0')) { throw 'Startup shortcut does not use the launcher icon resource.' }
     if ([IO.File]::ReadAllText($installed.ScriptPath) -cne [IO.File]::ReadAllText($fixture)) { throw 'Installed script differs from the source.' }
 
     # PE Optional Header Subsystem=2 is a GUI application; 3 would be a console.

@@ -6,9 +6,9 @@ $root = Split-Path $PSScriptRoot -Parent
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('hs80-package-test-' + [Guid]::NewGuid().ToString('N'))
 
 try {
-    $package = & (Join-Path $root 'scripts/Build-Release.ps1') -Version v0.2.0 -OutputDirectory $temp
+    $package = & (Join-Path $root 'scripts/Build-Release.ps1') -Version v1.0.0 -OutputDirectory $temp
     $hashLine = [IO.File]::ReadAllText($package.ChecksumPath).Trim()
-    $expected = (Get-FileHash -LiteralPath $package.ZipPath -Algorithm SHA256).Hash.ToLowerInvariant() + '  hs80-rgb-v0.2.0.zip'
+    $expected = (Get-FileHash -LiteralPath $package.ZipPath -Algorithm SHA256).Hash.ToLowerInvariant() + '  hs80-rgb-v1.0.0.zip'
     if ($hashLine -cne $expected) { throw 'The published checksum does not match the ZIP.' }
 
     $extracted = Join-Path $temp 'extracted'

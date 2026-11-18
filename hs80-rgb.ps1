@@ -57,7 +57,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$programVersion = '0.2.0+startup.5'
+$programVersion = '1.0.0'
 
 function Get-HS80StartupLauncherSource {
     return @'
@@ -154,30 +154,47 @@ function Install-HS80Startup {
     if (-not (Test-Path -LiteralPath $iconSource -PathType Leaf)) {
         throw "Icon file not found: $iconSource"
     }
-    $installedIcon = Join-Path $InstallDirectory 'hs80-rgb.ico'
-    Copy-Item -LiteralPath $iconSource -Destination $installedIcon -Force
     $source = Get-HS80StartupLauncherSource
+    $iconHash = (Get-FileHash -LiteralPath $iconSource -Algorithm SHA256).Hash
+    $hashInput = ($source -replace '\r\n', "`n") + "`nicon-sha256:" + $iconHash
     $sha = [Security.Cryptography.SHA256]::Create()
     try {
-        $id = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($source -replace '\r\n', "`n")))).Replace('-', '').Substring(0, 16)
+        $id = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($hashInput))).Replace('-', '').Substring(0, 16)
     } finally { $sha.Dispose() }
     $launcher = Join-Path $InstallDirectory ('HS80Rgb.Startup-' + $id + '.exe')
     if (-not (Test-Path -LiteralPath $launcher)) {
-        Add-Type -TypeDefinition $source -OutputAssembly $launcher -OutputType WindowsApplication
+        $compilerParameters = New-Object System.CodeDom.Compiler.CompilerParameters
+        [void]$compilerParameters.ReferencedAssemblies.Add('System.dll')
+        $compilerParameters.GenerateExecutable = $true
+        $compilerParameters.OutputAssembly = $launcher
+        $compilerParameters.CompilerOptions = '/target:winexe /win32icon:"' + $iconSource + '"'
+        # Compile to disk without loading the launcher into this PowerShell process.
+        $provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+        try {
+            $result = $provider.CompileAssemblyFromSource($compilerParameters, [string[]]@($source))
+            if ($result.Errors.HasErrors) {
+                throw ('Startup launcher compilation failed: ' + ($result.Errors -join "`n"))
+            }
+        } finally { $provider.Dispose() }
     }
-    foreach ($legacyName in @('HS80 RGB.lnk', 'HS80 RGB apagado.lnk')) {
+    foreach ($legacyName in @('HS80 RGB - Corsair.lnk', 'HS80 RGB.lnk', 'HS80 RGB apagado.lnk')) {
         $legacyPath = Join-Path $StartupDirectory $legacyName
         if (Test-Path -LiteralPath $legacyPath) { Remove-Item -LiteralPath $legacyPath -Force }
     }
-    $shortcutPath = Join-Path $StartupDirectory 'HS80 RGB - Corsair.lnk'
+    $shortcutPath = Join-Path $StartupDirectory 'HS80 RGB - Ricardo Braga Lab.lnk'
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = $launcher
     $shortcut.Arguments = $Parameters
     $shortcut.WorkingDirectory = $InstallDirectory
-    $shortcut.Description = 'HS80 RGB - Corsair | Ricardo Braga Lab'
-    $shortcut.IconLocation = $installedIcon + ',0'
+    $shortcut.Description = 'HS80 RGB - Ricardo Braga Lab'
+    $shortcut.IconLocation = $launcher + ',0'
     $shortcut.Save()
+    Get-ChildItem -LiteralPath $InstallDirectory -Filter 'HS80Rgb.Startup-*.exe' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -ne $launcher } |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+    $obsoleteIcon = Join-Path $InstallDirectory 'hs80-rgb.ico'
+    if (Test-Path -LiteralPath $obsoleteIcon) { Remove-Item -LiteralPath $obsoleteIcon -Force -ErrorAction SilentlyContinue }
     return [pscustomobject]@{ ScriptPath = $installedScript; LauncherPath = $launcher; ShortcutPath = $shortcutPath }
 }
 
@@ -237,10 +254,10 @@ try {
 
     if ($InstallStartup -or $UninstallStartup) {
         $startupDirectory = [Environment]::GetFolderPath('Startup')
-        $shortcutPath = Join-Path $startupDirectory 'HS80 RGB - Corsair.lnk'
+        $shortcutPath = Join-Path $startupDirectory 'HS80 RGB - Ricardo Braga Lab.lnk'
 
         if ($UninstallStartup) {
-            foreach ($shortcutName in @('HS80 RGB - Corsair.lnk', 'HS80 RGB.lnk', 'HS80 RGB apagado.lnk')) {
+            foreach ($shortcutName in @('HS80 RGB - Ricardo Braga Lab.lnk', 'HS80 RGB - Corsair.lnk', 'HS80 RGB.lnk', 'HS80 RGB apagado.lnk')) {
                 $existingShortcut = Join-Path $startupDirectory $shortcutName
                 if (Test-Path -LiteralPath $existingShortcut) {
                     Remove-Item -LiteralPath $existingShortcut -Force

@@ -42,17 +42,24 @@ jobs:
           $existingJson = gh release view $env:RELEASE_TAG --json isPrerelease,isDraft 2>$null
           if ($LASTEXITCODE -eq 0) {
             $existing = $existingJson | ConvertFrom-Json
-            # Only these development previews may be rebuilt after an amended tag.
-            if ($env:RELEASE_TAG -notin @('v0.1.0', 'v0.2.0') -or -not $existing.isPrerelease) {
+            # Development previews and the initial stable release may be rebuilt after an amended tag.
+            $previewTags = @('v0.1.0', 'v0.2.0')
+            if ($env:RELEASE_TAG -notin ($previewTags + @('v1.0.0'))) {
               throw 'An existing release cannot be replaced. Publish a new version.'
             }
-            # Hide the preview until both replacement assets have been uploaded.
+            if ($env:RELEASE_TAG -in $previewTags -and -not $existing.isPrerelease) {
+              throw 'An existing stable release cannot be replaced.'
+            }
+            if ($env:RELEASE_TAG -eq 'v1.0.0' -and $existing.isPrerelease) {
+              throw 'The v1.0.0 release must remain stable.'
+            }
+            # Hide the release until both replacement assets have been uploaded.
             gh release edit $env:RELEASE_TAG --draft=true
-            if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the preview for replacement.' }
+            if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the release for replacement.' }
             gh release upload $env:RELEASE_TAG $package.ZipPath $package.ChecksumPath --clobber
-            if ($LASTEXITCODE -ne 0) { throw 'Preview asset replacement failed; the release remains a draft.' }
-            gh release edit $env:RELEASE_TAG --draft=false --prerelease --notes-file $package.NotesPath
-            if ($LASTEXITCODE -ne 0) { throw 'Preview republication failed.' }
+            if ($LASTEXITCODE -ne 0) { throw 'Release asset replacement failed; the release remains a draft.' }
+            gh release edit $env:RELEASE_TAG --draft=false --notes-file $package.NotesPath
+            if ($LASTEXITCODE -ne 0) { throw 'Release republication failed.' }
             exit 0
           }
           $arguments = @(
